@@ -899,7 +899,32 @@ class AutoTestPlane(AutoTest):
         if abs(x.alt_msl - (original_alt+30)) > 10:
             raise NotAchievedException("Bad absalt (want=%f vs got=%f)" % (original_alt+30, x.alt_msl))
         self.fly_home_land_and_disarm()
-
+    
+    
+    def test_short_failsafe(self):
+        self.set_parameter("GCS_FS_ENABL", 1)
+        self.set_parameter("FS_SHORT_ACTN", 1)
+        # self.reboot_sitl()
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+        self.takeoff()
+        self.load_mission("filename")
+        self.change_mode('AUTO')
+        
+        try:
+            self.set_heartbeat_rate(0)
+            self.wait_statustext("GCS Failsafe")
+        
+        except Exception as e:
+            self.set_heartbeat_rate(1)
+            self.print_exception_caught(e)
+            ex = e
+        self.context_pop()
+        if ex:
+            if self.armed():
+                self.fly_home_land_and_disarm()
+            raise ex
+    
     def test_throttle_failsafe(self):
         self.change_mode('MANUAL')
         m = self.mav.recv_match(type='SYS_STATUS', blocking=True)
